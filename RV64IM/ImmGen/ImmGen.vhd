@@ -1,0 +1,14 @@
+LIBRARY IEEE;
+USE IEEE.std_logic_1164.ALL;
+USE IEEE.numeric_std.ALL;
+
+ENTITY ImmGen IS
+    PORT (
+        Instruction : IN STD_LOGIC_VECTOR(31 DOWNTO 0);
+        O : OUT STD_LOGIC_VECTOR(63 DOWNTO 0)
+    );
+END ENTITY ImmGen;
+
+ARCHITECTURE Struct OF ImmGen IS
+BEGIN
+END Struct;

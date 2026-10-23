@@ -1,0 +1,22 @@
+-- File Register
+LIBRARY IEEE;
+USE IEEE.std_logic_1164.ALL;
+USE IEEE.numeric_std.ALL;
+
+ENTITY MUX64B4To1 IS
+    PORT (
+        A, B, C, D : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
+        S : IN STD_LOGIC;
+        O : OUT STD_LOGIC_VECTOR(63 DOWNTO 0)
+    );
+END ENTITY MUX64B4To1;
+
+ARCHITECTURE Struct OF MUX64B4To1 IS
+BEGIN
+
+    O <= (A AND (63 DOWNTO 0 => (NOT S(1) AND NOT S(0))))
+        OR (B AND (63 DOWNTO 0 => (NOT S(1) AND S(0))))
+        OR (C AND (63 DOWNTO 0 => (S(1) AND NOT S(0))))
+        OR (D AND (63 DOWNTO 0 => (S(1) AND S(0))));
+
+END Struct;

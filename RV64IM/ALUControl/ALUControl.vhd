@@ -1,0 +1,19 @@
+LIBRARY IEEE;
+USE IEEE.std_logic_1164.ALL;
+USE IEEE.numeric_std.ALL;
+
+ENTITY ALUControl IS
+    PORT (
+        Instruction14to12 : IN STD_LOGIC_VECTOR(14 DOWNTO 12);
+        Instruction30 : IN STD_LOGIC_VECTOR(30 DOWNTO 30);
+        Instruction25 : IN STD_LOGIC_VECTOR(25 DOWNTO 25);
+        ALUOp : IN STD_LOGIC_VECTOR(2 DOWNTO 0);
+        ALUSelect : OUT STD_LOGIC_VECTOR(5 DOWNTO 0)
+    );
+END ENTITY ALUControl;
+
+ARCHITECTURE Struct OF ALUControl IS
+BEGIN
+
+    
+END Struct;
