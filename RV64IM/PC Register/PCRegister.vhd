@@ -1,5 +1,3 @@
--- 64-bit Program Counter Register
--- Stores program counter state with reset, load and increment controls
 LIBRARY IEEE;
 USE IEEE.std_logic_1164.ALL;
 USE IEEE.numeric_std.ALL;
