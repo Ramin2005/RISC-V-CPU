@@ -25,16 +25,14 @@ BEGIN
 
         IF rising_edge(CLK) AND Clear = '1' THEN
 
-            FOR i IN 31 DOWNTO 0 LOOP
-                Data(i) <= (OTHERS => '0');
-            END LOOP;
+            Data <= (OTHERS => (OTHERS => '0'));
 
         ELSIF rising_edge(CLK) AND WriteEnable = '1' THEN
 
-            IF unsigned(AddressW) >= 0 THEN
+            IF unsigned(AddressW) > 0 THEN
                 Data(to_integer(unsigned(AddressW))) <= DataIn;
             END IF;
-            
+
         END IF;
 
     END PROCESS;
