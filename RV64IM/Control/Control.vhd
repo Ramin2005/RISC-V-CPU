@@ -149,31 +149,8 @@ BEGIN
                 ALUSrcB <= '1';
                 ALUOp <= "000";
 
-                ---------- Fence / System ----------
-                -- Misc Mem (FENCE)
-            WHEN "0001111" =>
-                Branch <= '0';
-                MemRead <= '0';
-                MemWrite <= '0';
-                RegSrc <= "00";
-                RegWrite <= '0';
-                ALUSrcA <= '0';
-                ALUSrcB <= '0';
-                ALUOp <= "000";
-
-                -- System (ECALL / EBREAK / CSR)
-            WHEN "1110011" =>
-                Branch <= '0';
-                MemRead <= '0';
-                MemWrite <= '0';
-                RegSrc <= "00";
-                RegWrite <= '0';
-                ALUSrcA <= '0';
-                ALUSrcB <= '0';
-                ALUOp <= "000";
-
                 ---------- Custom ----------
-                -- Custom 0
+                -- Custom 0 (R-Type)
             WHEN "0001011" =>
                 Branch <= '0';
                 MemRead <= '0';
@@ -184,7 +161,7 @@ BEGIN
                 ALUSrcB <= '0';
                 ALUOp <= "110";
 
-                -- Custom 1
+                -- Custom 1 (I-Type)
             WHEN "0101011" =>
                 Branch <= '0';
                 MemRead <= '0';
@@ -194,40 +171,6 @@ BEGIN
                 ALUSrcA <= '0';
                 ALUSrcB <= '1';
                 ALUOp <= "111";
-
-                -- Custom 2
-            WHEN "1011011" =>
-                Branch <= '0';
-                MemRead <= '0';
-                MemWrite <= '0';
-                RegSrc <= "00";
-                RegWrite <= '0';
-                ALUSrcA <= '0';
-                ALUSrcB <= '0';
-                ALUOp <= "000";
-
-                -- Custom 3
-            WHEN "1111011" =>
-                Branch <= '0';
-                MemRead <= '0';
-                MemWrite <= '0';
-                RegSrc <= "00";
-                RegWrite <= '0';
-                ALUSrcA <= '0';
-                ALUSrcB <= '0';
-                ALUOp <= "000";
-
-                ---------- Reserved ----------
-                -- Reserved
-            WHEN "1101011" =>
-                Branch <= '0';
-                MemRead <= '0';
-                MemWrite <= '0';
-                RegSrc <= "00";
-                RegWrite <= '0';
-                ALUSrcA <= '0';
-                ALUSrcB <= '0';
-                ALUOp <= "000";
 
                 -- Other (compressed / longer instructions)
             WHEN OTHERS =>
