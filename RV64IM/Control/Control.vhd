@@ -12,7 +12,7 @@ ENTITY Control IS
         PCSrc : OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
         ALUSrcA : OUT STD_LOGIC;
         ALUSrcB : OUT STD_LOGIC;
-        ALUOpcode : OUT STD_LOGIC_VECTOR(2 DOWNTO 0);
+        ALUOpcode : OUT STD_LOGIC_VECTOR(2 DOWNTO 0)
     );
 END ENTITY Control;
 
@@ -29,32 +29,32 @@ BEGIN
         PCSrc <= "00";
         ALUSrcA <= '0';
         ALUSrcB <= '0';
-        ALUOp <= "000";
+        ALUOpcode <= "000";
 
         CASE Opcode IS
                 ---------- ALU Register ----------
                 -- OP
             WHEN "0110011" =>
                 RegWrite <= '1';
-                ALUOp <= "010";
+                ALUOpcode <= "010";
 
                 -- OP 32-Bit
             WHEN "0111011" =>
                 RegWrite <= '1';
-                ALUOp <= "100";
+                ALUOpcode <= "100";
 
                 ---------- ALU Immediate ----------
                 -- OP IMM
             WHEN "0010011" =>
                 RegWrite <= '1';
                 ALUSrcB <= '1';
-                ALUOp <= "011";
+                ALUOpcode <= "011";
 
                 -- OP IMM 32-Bit
             WHEN "0011011" =>
                 RegWrite <= '1';
                 ALUSrcB <= '1';
-                ALUOp <= "101";
+                ALUOpcode <= "101";
 
                 ---------- Upper Immediate ----------
                 -- AUIPC
@@ -85,7 +85,7 @@ BEGIN
                 -- BRANCH
             WHEN "1100011" =>
                 PCSrc <= "01";
-                ALUOp <= "001";
+                ALUOpcode <= "001";
 
                 -- JALR
             WHEN "1100111" =>
@@ -106,13 +106,13 @@ BEGIN
                 -- Custom 0 (R-Type)
             WHEN "0001011" =>
                 RegWrite <= '1';
-                ALUOp <= "110";
+                ALUOpcode <= "110";
 
                 -- Custom 1 (I-Type)
             WHEN "0101011" =>
                 RegWrite <= '1';
                 ALUSrcB <= '1';
-                ALUOp <= "111";
+                ALUOpcode <= "111";
 
                 -- Other (compressed / longer instructions)
             WHEN OTHERS =>
