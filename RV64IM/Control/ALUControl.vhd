@@ -143,6 +143,9 @@ BEGIN
                             -- REMU
                             ALUSelect <= "010000";
                         END IF;
+
+                    WHEN OTHERS =>
+                        NULL;
                 END CASE;
 
                 --------------
@@ -212,6 +215,9 @@ BEGIN
                     WHEN "111" =>
                         -- AND
                         ALUSelect <= "010100";
+
+                    WHEN OTHERS =>
+                        NULL;
                 END CASE;
 
                 --------------
@@ -469,6 +475,9 @@ BEGIN
                             -- SH3ADD
                             ALUSelect <= "110110";
                         END IF;
+
+                    WHEN OTHERS =>
+                        NULL;
                 END CASE;
 
                 --------------
@@ -506,7 +515,13 @@ BEGIN
                     WHEN "111" =>
                         -- ANDN
                         ALUSelect <= "010111";
+
+                    WHEN OTHERS =>
+                        NULL;
                 END CASE;
+
+            WHEN OTHERS =>
+                NULL;
         END CASE;
     END PROCESS;
 
