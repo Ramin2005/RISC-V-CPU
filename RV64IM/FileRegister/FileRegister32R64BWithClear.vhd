@@ -4,10 +4,10 @@ USE IEEE.numeric_std.ALL;
 
 ENTITY FileRegister32R64BWithClear IS
     PORT (
-        AddressA, AddressB, AddressW : IN STD_LOGIC_VECTOR(4 DOWNTO 0);
-        WriteEnable : IN STD_LOGIC;
         Clk : IN STD_LOGIC;
         Clear : IN STD_LOGIC;
+        AddressA, AddressB, AddressW : IN STD_LOGIC_VECTOR(4 DOWNTO 0);
+        WriteEnable : IN STD_LOGIC;
         DataIn : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
         DataOutA, DataOutB : OUT STD_LOGIC_VECTOR(63 DOWNTO 0)
     );

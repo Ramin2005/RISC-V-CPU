@@ -4,8 +4,8 @@ USE IEEE.numeric_std.ALL;
 
 ENTITY PCRegister IS
     PORT (
-        CLK : IN STD_LOGIC;
-        Reset : IN STD_LOGIC;
+        Clk : IN STD_LOGIC;
+        Clear : IN STD_LOGIC;
         DataIn : IN STD_LOGIC_VECTOR(63 DOWNTO 0);
         Q : OUT STD_LOGIC_VECTOR(63 DOWNTO 0)
     );
@@ -18,13 +18,13 @@ ARCHITECTURE Struct OF PCRegister IS
 
 BEGIN
 
-    PROCESS (CLK)
+    PROCESS (Clk)
     BEGIN
 
-        IF rising_edge(CLK) AND Reset = '1' THEN
+        IF rising_edge(Clk) AND Clear = '1' THEN
             QR <= (OTHERS => '0');
 
-        ELSIF rising_edge(CLK) THEN
+        ELSIF rising_edge(Clk) THEN
             QR <= DataIn;
 
         END IF;

@@ -10,8 +10,7 @@ ENTITY Control IS
         RegWrite : OUT STD_LOGIC;
         RegSrc : OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
         PCSrc : OUT STD_LOGIC_VECTOR(1 DOWNTO 0);
-        ALUSrcA : OUT STD_LOGIC;
-        ALUSrcB : OUT STD_LOGIC;
+        ALUSrcA, ALUSrcB : OUT STD_LOGIC;
         ALUOpcode : OUT STD_LOGIC_VECTOR(2 DOWNTO 0)
     );
 END ENTITY Control;
