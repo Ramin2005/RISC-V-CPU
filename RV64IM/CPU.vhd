@@ -18,23 +18,22 @@ ENTITY CPU IS
 
         -- Instruction Memory
         InstructionAddress : OUT STD_LOGIC_VECTOR(63 DOWNTO 0);
-        InstructionIn : IN STD_LOGIC_VECTOR(63 DOWNTO 0)
+        InstructionIn : IN STD_LOGIC_VECTOR(31 DOWNTO 0)
     );
 END ENTITY CPU;
 
 ARCHITECTURE Struct OF CPU IS
     -- Constant 4
-    CONSTANT Four : STD_LOGIC_VECTOR(63 DOWNTO 0) := (2 => '1' | OTHERS => '0');
+    CONSTANT Four : STD_LOGIC_VECTOR(63 DOWNTO 0) := (2 => '1', OTHERS => '0');
 
     -- Instruction Signal
-    SIGNAL SigInstruction : STD_LOGIC_VECTOR(63 DOWNTO 0);
+    SIGNAL SigInstruction : STD_LOGIC_VECTOR(31 DOWNTO 0);
 
     -- PC
     SIGNAL SigPC : STD_LOGIC_VECTOR(63 DOWNTO 0);
     SIGNAL SigPCPlus4 : STD_LOGIC_VECTOR(63 DOWNTO 0);
 
     -- Control Unit Signals
-    SIGNAL SigBranch : STD_LOGIC;
     SIGNAL SigMemRead : STD_LOGIC;
     SIGNAL SigMemWrite : STD_LOGIC;
     SIGNAL SigRegWrite : STD_LOGIC;
@@ -66,7 +65,6 @@ BEGIN
     ControlUnit : ENTITY work.MainControl
         PORT MAP(
             Instruction => SigInstruction,
-            Branch => SigBranch,
             MemRead => SigMemRead,
             MemWrite => SigMemWrite,
             RegWrite => SigRegWrite,
@@ -86,7 +84,7 @@ BEGIN
             AddressB => SigInstruction(24 DOWNTO 20),
             AddressW => SigInstruction(11 DOWNTO 7),
             WriteEnable => SigRegWrite,
-            DataIn => SigRegDataIn;
+            DataIn => SigRegDataIn,
             DataOutA => SigRegDataOutA,
             DataOutB => SigRegDataOutB
         );
@@ -101,7 +99,7 @@ BEGIN
     -- Mux 1 (ALUSrc1)
     Mux1 : ENTITY work.MUX64B2To1
         PORT MAP(
-            A => SigRegDataOutAو
+            A => SigRegDataOutA,
             B => SigPC,
             S => SigALUSrcA,
             O => SigA
@@ -110,7 +108,7 @@ BEGIN
     -- Mux 2 (ALUSrc2)
     Mux2 : ENTITY work.MUX64B2To1
         PORT MAP(
-            A => SigRegDataOutBو
+            A => SigRegDataOutB,
             B => SigImmediate,
             S => SigALUSrcB,
             O => SigB
@@ -134,10 +132,12 @@ BEGIN
     MemoryReadEnable <= SigMemRead;
 
     -- Mux 3 (Register File Src)
-    Mux3 : ENTITY work.MUX64B2To1
+    Mux3 : ENTITY work.MUX64B4To1
         PORT MAP(
-            A => SigRegDataOutB,
-            B => SigResult,
+            A => SigResult,
+            B => MemoryReadData,
+            C => SigPCPlus4,
+            D => SigImmediate,
             S => SigRegSrc,
             O => SigRegDataIn
         );
@@ -151,7 +151,7 @@ BEGIN
         );
 
     -- Adder (PC + Imm)
-    PCAdder : ENTITY work.UnsignedAdder64Bit
+    BranchAdder : ENTITY work.UnsignedAdder64Bit
         PORT MAP(
             A => SigPC,
             B => SigImmediate,
