@@ -374,7 +374,7 @@ BEGIN
                             ALUSelect <= "101101";
 
                         ELSIF funct7 = "0100000" THEN
-                            -- ADDUW
+                            -- ABS
                             ALUSelect <= "000100";
 
                         ELSIF funct7 = "0100001" THEN
