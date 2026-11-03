@@ -32,8 +32,8 @@ ARCHITECTURE Struct OF CPU IS
     -- PC
     SIGNAL SigPC : STD_LOGIC_VECTOR(63 DOWNTO 0);
     SIGNAL SigPCPlus4 : STD_LOGIC_VECTOR(63 DOWNTO 0);
-
     -- Control Unit Signals
+    SIGNAL SigBranch : STD_LOGIC;
     SIGNAL SigMemRead : STD_LOGIC;
     SIGNAL SigMemWrite : STD_LOGIC;
     SIGNAL SigRegWrite : STD_LOGIC;
@@ -157,12 +157,14 @@ BEGIN
             B => SigImmediate,
             sum => SigBranchAdd
         );
+    -- Branch Signal
+    SigBranch <= (NOT SigZeroFlag) XOR (SigInstruction(14) AND SigInstruction(12));
 
     -- PC Control
     PCControl : ENTITY work.PCControl
         PORT MAP(
             PCSrc => SigPCSrc,
-            ZeroFlag => SigZeroFlag,
+            Branch => SigBranch,
             PCPlus4 => SigPCPlus4,
             BranchAdd => SigBranchAdd,
             ALUResult => SigResult,
