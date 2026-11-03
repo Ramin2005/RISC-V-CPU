@@ -18,7 +18,7 @@ ARCHITECTURE Struct OF PCRegister IS
 
 BEGIN
 
-    PROCESS (Clk)
+    PROCESS (Clk, Clear, DataIn)
     BEGIN
 
         IF rising_edge(Clk) AND Clear = '1' THEN

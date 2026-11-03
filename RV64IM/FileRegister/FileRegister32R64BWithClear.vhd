@@ -15,19 +15,19 @@ END ENTITY FileRegister32R64BWithClear;
 
 ARCHITECTURE Struct OF FileRegister32R64BWithClear IS
 
-    TYPE DataArray IS ARRAY (31 DOWNTO 0) OF STD_LOGIC_VECTOR(63 DOWNTO 0);
+    TYPE DataArray IS ARRAY (31 DOWNTO 1) OF STD_LOGIC_VECTOR(63 DOWNTO 0);
     SIGNAL Data : DataArray;
 
 BEGIN
 
-    PROCESS (Clk)
+    PROCESS (Clk, Clear, WriteEnable, AddressW)
     BEGIN
 
-        IF rising_edge(CLK) AND Clear = '1' THEN
+        IF rising_edge(Clk) AND Clear = '1' THEN
 
             Data <= (OTHERS => (OTHERS => '0'));
 
-        ELSIF rising_edge(CLK) AND WriteEnable = '1' THEN
+        ELSIF rising_edge(Clk) AND WriteEnable = '1' THEN
 
             IF unsigned(AddressW) > 0 THEN
                 Data(to_integer(unsigned(AddressW))) <= DataIn;
@@ -37,7 +37,10 @@ BEGIN
 
     END PROCESS;
 
-    DataOutA <= Data(to_integer(unsigned(AddressA)));
-    DataOutB <= Data(to_integer(unsigned(AddressB)));
+    DataOutA <= (OTHERS => '0') WHEN AddressA = "00000" ELSE
+        Data(to_integer(unsigned(AddressA)));
+
+    DataOutB <= (OTHERS => '0') WHEN AddressB = "00000" ELSE
+        Data(to_integer(unsigned(AddressB)));
 
 END Struct;
