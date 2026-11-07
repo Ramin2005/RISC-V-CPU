@@ -37,10 +37,17 @@ BEGIN
 
     END PROCESS;
 
-    DataOutA <= (OTHERS => '0') WHEN AddressA = "00000" ELSE
-        Data(to_integer(unsigned(AddressA)));
+    PROCESS (AddressA, AddressB, Data)
+    BEGIN
+        DataOutA <= (OTHERS => '0');
+        IF to_integer(unsigned(AddressA)) > 0 THEN
+            DataOutA <= Data(to_integer(unsigned(AddressA)));
+        END IF;
 
-    DataOutB <= (OTHERS => '0') WHEN AddressB = "00000" ELSE
-        Data(to_integer(unsigned(AddressB)));
+        DataOutB <= (OTHERS => '0');
+        IF to_integer(unsigned(AddressB)) > 0 THEN
+            DataOutB <= Data(to_integer(unsigned(AddressB)));
+        END IF;
+    END PROCESS;
 
 END Struct;

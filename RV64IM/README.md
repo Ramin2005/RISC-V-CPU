@@ -2,9 +2,9 @@
 
 A 64-bit single-cycle RISC-V processor written in VHDL. It implements **RV64I**, the **M** extension, a 40-instruction **custom** extension (32 custom-0 R-type and 8 custom-1 I-type instructions) and a small set of **Zba / Zbb / Zbs** instructions.
 
-> **Status.** The control path (`Control`, `ALUControl`, `MainControl`), the ALU and the immediate generator are written. The CPU top level, the instruction and data memories, the load/store unit and the PC logic are **not part of the current files**. This README describes the processor *as it will behave when those are completed* (section 6 lists what they must do).
+> **Status.** The processor core is complete: control path (`Control`, `ALUControl`, `MainControl`), ALU, immediate generator, register file, PC logic (`PCControl`, `PCRegister`, adders), multiplexers and the top level `CPU.vhd`. The **instruction memory and the data memory are not part of the files**: `CPU` exposes them as ports (section 4.1). The data memory must also do the load size / sign extension (section 4.2). No test bench and no simulator run yet (sections 6 and 8).
 
-Companion spreadsheet: `RV64IM_Implementable_Instructions.xlsx` (every instruction with its control signals, the ALU map, unsupported instructions and pseudo-instructions).
+Companion spreadsheet: `RV64IM_Implementable_Instructions.xlsx` (every instruction with its control signals, the ALU map, unsupported instructions and pseudo-instructions). It is not included in the current archive.
 
 ## 1. Files
 
@@ -15,12 +15,14 @@ Companion spreadsheet: `RV64IM_Implementable_Instructions.xlsx` (every instructi
 | `Control/ALUControl.vhd` | Decodes funct3 / funct7 and ALUOpcode into the 6-bit ALUSelect |
 | `Control/MainControl.vhd` | Top of the control path: instantiates Control and ALUControl |
 | `ImmGen/ImmGen.vhd` | Immediate generator (I, S, B, U, J formats and shift amounts) |
-| `FileRegister/FileRegister32R64BWithClear.vhd` | 32 x 64-bit register file (2 read ports, 1 write port, synchronous clear) |
+| `FileRegister/FileRegister32R64BWithClear.vhd` | 32 x 64-bit register file (2 read ports, 1 write port, synchronous clear, x0 hardwired to 0) |
 | `Adder/UnsignedAdder64Bit.vhd` | 64-bit adder (PC + 4 and branch target) |
 | `MUX/MUX64B2To1.vhdl` | 64-bit 2-to-1 multiplexer |
-| `MUX/MUX64B4To1.vhdl` | 64-bit 4-to-1 multiplexer |
-| `PC Register/PCRegister.vhd` | Program counter register |
-| *(to be written)* | `CPU.vhd` top level, instruction memory, data memory, load/store unit |
+| `MUX/MUX64B4To1.vhd` | 64-bit 4-to-1 multiplexer |
+| `PC Register/PCRegister.vhd` | Program counter register (synchronous clear) |
+| `PC Control/PCControl.vhd` | Next-PC selection (PC + 4, branch target, JAL target, JALR target) |
+| `CPU.vhd` | Top level: connects all blocks, exposes the instruction and data memory ports |
+| *(external)* | Instruction memory and data memory (including load/store size and extension) |
 
 ### Entity ports
 
@@ -69,10 +71,26 @@ Companion spreadsheet: `RV64IM_Implementable_Instructions.xlsx` (every instructi
 | MUX64B4To1 | A,B,C,D | IN | `STD_LOGIC_VECTOR(63 DOWNTO 0)` |
 | MUX64B4To1 | S | IN | `STD_LOGIC_VECTOR(1 DOWNTO 0)` |
 | MUX64B4To1 | O | OUT | `STD_LOGIC_VECTOR(63 DOWNTO 0)` |
-| PCRegister | CLK | IN | `STD_LOGIC` |
-| PCRegister | Reset | IN | `STD_LOGIC` |
+| PCRegister | Clk | IN | `STD_LOGIC` |
+| PCRegister | Clear | IN | `STD_LOGIC` |
 | PCRegister | DataIn | IN | `STD_LOGIC_VECTOR(63 DOWNTO 0)` |
 | PCRegister | Q | OUT | `STD_LOGIC_VECTOR(63 DOWNTO 0)` |
+| PCControl | PCSrc | IN | `STD_LOGIC_VECTOR(1 DOWNTO 0)` |
+| PCControl | Branch | IN | `STD_LOGIC` |
+| PCControl | PCPlus4 | IN | `STD_LOGIC_VECTOR(63 DOWNTO 0)` |
+| PCControl | BranchAdd | IN | `STD_LOGIC_VECTOR(63 DOWNTO 0)` |
+| PCControl | ALUResult | IN | `STD_LOGIC_VECTOR(63 DOWNTO 0)` |
+| PCControl | NextPC | OUT | `STD_LOGIC_VECTOR(63 DOWNTO 0)` |
+| CPU | Clk | IN | `STD_LOGIC` |
+| CPU | Reset | IN | `STD_LOGIC` |
+| CPU | MemoryAddress | OUT | `STD_LOGIC_VECTOR(63 DOWNTO 0)` |
+| CPU | MemoryMask | OUT | `STD_LOGIC_VECTOR(2 DOWNTO 0)` |
+| CPU | MemoryWriteEnable | OUT | `STD_LOGIC` |
+| CPU | MemoryWriteData | OUT | `STD_LOGIC_VECTOR(63 DOWNTO 0)` |
+| CPU | MemoryReadEnable | OUT | `STD_LOGIC` |
+| CPU | MemoryReadData | IN | `STD_LOGIC_VECTOR(63 DOWNTO 0)` |
+| CPU | InstructionAddress | OUT | `STD_LOGIC_VECTOR(63 DOWNTO 0)` |
+| CPU | InstructionIn | IN | `STD_LOGIC_VECTOR(31 DOWNTO 0)` |
 
 ## 2. Instruction set (114 instructions)
 
@@ -97,30 +115,30 @@ Companion spreadsheet: `RV64IM_Implementable_Instructions.xlsx` (every instructi
 | AND | `0110011` | `111` | `0000000` | - | Core datapath only |
 | ANDI | `0010011` | `111` | `-` | I | Core datapath only |
 | AUIPC | `0010111` | `-` | `-` | U | Core datapath only |
-| BEQ | `1100011` | `000` | `-` | B | PC logic (BranchTaken, PCSel) |
-| BGE | `1100011` | `101` | `-` | B | PC logic (BranchTaken, PCSel) |
-| BGEU | `1100011` | `111` | `-` | B | PC logic (BranchTaken, PCSel) |
-| BLT | `1100011` | `100` | `-` | B | PC logic (BranchTaken, PCSel) |
-| BLTU | `1100011` | `110` | `-` | B | PC logic (BranchTaken, PCSel) |
-| BNE | `1100011` | `001` | `-` | B | PC logic (BranchTaken, PCSel) |
+| BEQ | `1100011` | `000` | `-` | B | PC logic (`Branch`, `PCControl`) |
+| BGE | `1100011` | `101` | `-` | B | PC logic (`Branch`, `PCControl`) |
+| BGEU | `1100011` | `111` | `-` | B | PC logic (`Branch`, `PCControl`) |
+| BLT | `1100011` | `100` | `-` | B | PC logic (`Branch`, `PCControl`) |
+| BLTU | `1100011` | `110` | `-` | B | PC logic (`Branch`, `PCControl`) |
+| BNE | `1100011` | `001` | `-` | B | PC logic (`Branch`, `PCControl`) |
 | EBREAK | `1110011` | `000` | `-` | - | None (NOP) |
 | ECALL | `1110011` | `000` | `-` | - | None (NOP) |
 | FENCE | `0001111` | `000` | `-` | - | None (NOP) |
-| JAL | `1101111` | `-` | `-` | J | PC logic (BranchTaken, PCSel) |
-| JALR | `1100111` | `000` | `-` | I | PC logic (BranchTaken, PCSel) |
-| LB | `0000011` | `000` | `-` | I | Data memory + load/store unit |
-| LBU | `0000011` | `100` | `-` | I | Data memory + load/store unit |
-| LD | `0000011` | `011` | `-` | I | Data memory + load/store unit |
-| LH | `0000011` | `001` | `-` | I | Data memory + load/store unit |
-| LHU | `0000011` | `101` | `-` | I | Data memory + load/store unit |
+| JAL | `1101111` | `-` | `-` | J | PC logic (`Branch`, `PCControl`) |
+| JALR | `1100111` | `000` | `-` | I | PC logic (`Branch`, `PCControl`) |
+| LB | `0000011` | `000` | `-` | I | External data memory (size and extension by `MemoryMask`) |
+| LBU | `0000011` | `100` | `-` | I | External data memory (size and extension by `MemoryMask`) |
+| LD | `0000011` | `011` | `-` | I | External data memory (size and extension by `MemoryMask`) |
+| LH | `0000011` | `001` | `-` | I | External data memory (size and extension by `MemoryMask`) |
+| LHU | `0000011` | `101` | `-` | I | External data memory (size and extension by `MemoryMask`) |
 | LUI | `0110111` | `-` | `-` | U | Core datapath only |
-| LW | `0000011` | `010` | `-` | I | Data memory + load/store unit |
-| LWU | `0000011` | `110` | `-` | I | Data memory + load/store unit |
+| LW | `0000011` | `010` | `-` | I | External data memory (size and extension by `MemoryMask`) |
+| LWU | `0000011` | `110` | `-` | I | External data memory (size and extension by `MemoryMask`) |
 | OR | `0110011` | `110` | `0000000` | - | Core datapath only |
 | ORI | `0010011` | `110` | `-` | I | Core datapath only |
-| SB | `0100011` | `000` | `-` | S | Data memory + load/store unit |
-| SD | `0100011` | `011` | `-` | S | Data memory + load/store unit |
-| SH | `0100011` | `001` | `-` | S | Data memory + load/store unit |
+| SB | `0100011` | `000` | `-` | S | External data memory (size and extension by `MemoryMask`) |
+| SD | `0100011` | `011` | `-` | S | External data memory (size and extension by `MemoryMask`) |
+| SH | `0100011` | `001` | `-` | S | External data memory (size and extension by `MemoryMask`) |
 | SLL | `0110011` | `001` | `0000000` | - | Core datapath only |
 | SLLI | `0010011` | `001` | `000000 (Inst[31:26])` | I (shift 6-bit) | Core datapath only |
 | SLLIW | `0011011` | `001` | `0000000` | I (shift 5-bit) | Core datapath only |
@@ -139,7 +157,7 @@ Companion spreadsheet: `RV64IM_Implementable_Instructions.xlsx` (every instructi
 | SRLW | `0111011` | `101` | `0000000` | - | Core datapath only |
 | SUB | `0110011` | `000` | `0100000` | - | Core datapath only |
 | SUBW | `0111011` | `000` | `0100000` | - | Core datapath only |
-| SW | `0100011` | `010` | `-` | S | Data memory + load/store unit |
+| SW | `0100011` | `010` | `-` | S | External data memory (size and extension by `MemoryMask`) |
 | XOR | `0110011` | `100` | `0000000` | - | Core datapath only |
 | XORI | `0010011` | `100` | `-` | I | Core datapath only |
 
@@ -243,8 +261,8 @@ Full descriptions of every instruction are in the spreadsheet.
 | ALUSrcB | `1` | Immediate |
 | PCSrc | `00` | Sequential |
 | PCSrc | `01` | Conditional branch |
-| PCSrc | `10` | JAL |
-| PCSrc | `11` | JALR |
+| PCSrc | `10` | JAL (target = ALU result = `PC + imm`) |
+| PCSrc | `11` | JALR (target = ALU result with bit 0 cleared) |
 | ALUOpcode | `000` | Address add / default (ADD) |
 | ALUOpcode | `001` | Branch compare |
 | ALUOpcode | `010` | OP |
@@ -318,15 +336,26 @@ Full descriptions of every instruction are in the spreadsheet.
 
 The ALU outputs `Zero = 1` when the result is 0. Comparison operations (EQ, NEQ, SLT, SLTU, SLE, SLEU) return 1 or 0 in bit 0.
 
-## 4. Execution rules the completed CPU must follow
+## 4. Execution rules (as implemented in `CPU.vhd`)
 
-- **Register and immediate instructions** (RV64I ALU, M, custom, Zb*): `ALUSrcA = rs1`, `ALUSrcB = rs2` or immediate, `RegSrc = 00`, write `rd`.
-- **LUI**: `RegSrc = 11`, the immediate goes directly to `rd`. **AUIPC**: ALU computes `PC + imm` (`ALUSrcA = 1`).
-- **Loads**: address = ALU result (`rs1 + imm`), `MemRead = 1`, `RegSrc = 01`. funct3: `000` LB, `001` LH, `010` LW, `011` LD, `100` LBU, `101` LHU, `110` LWU. Sign or zero extension is done by the load/store unit.
-- **Stores**: address = ALU result, write data = `rs2`, `MemWrite = 1`. funct3: `000` SB, `001` SH, `010` SW, `011` SD.
-- **Branches**: the ALU compares `rs1` and `rs2`. `BranchTaken = (PCSrc = 01) AND (ALUResult(0) XOR (Instruction(14) AND Instruction(12)))`. BNE uses NEQ (no inversion); BGE (`101`) and BGEU (`111`) invert SLT and SLTU. Target = `PC + imm`.
-- **JAL**: `rd = PC + 4`, target = `PC + imm`. **JALR**: `rd = PC + 4`, target = `(rs1 + imm)` with bit 0 cleared (ALU result).
-- **PCSel** (select of the PC multiplexer): `01` BranchTarget when (`PCSrc = 01` and BranchTaken) or `PCSrc = 10`; `10` JumpRegTarget when `PCSrc = 11`; otherwise `00` PC + 4.
+### 4.1 CPU ports and datapath
+
+- **Instruction memory** (external): `InstructionAddress` = PC, `InstructionIn` = the 32-bit instruction at that address (combinational read, single cycle).
+- **Data memory** (external): `MemoryAddress` = ALU result, `MemoryWriteData` = `rs2`, `MemoryMask` = `Instruction[14:12]` (funct3), `MemoryWriteEnable` = MemWrite, `MemoryReadEnable` = MemRead, `MemoryReadData` = 64-bit read data.
+- **Reset**: `Reset` drives `Clear` of the register file and of the PC register. Both clears are **synchronous**, so `Reset` must be held high for at least one rising edge of `Clk`; the PC is 0 after that edge. x0 always reads 0 (the register file returns 0 for address 0 and never writes it).
+- **ALU operands**: A = `ALUSrcA` ? PC : `rs1`; B = `ALUSrcB` ? Immediate : `rs2`.
+- **Write-back** (`MUX64B4To1`, select `RegSrc`): `00` ALU result, `01` `MemoryReadData`, `10` PC + 4, `11` Immediate.
+- **Adders**: `PC + 4` and `PC + Immediate` (`BranchAdd`, used only by conditional branches).
+
+### 4.2 Instruction behaviour
+
+- **Register and immediate instructions** (RV64I ALU, M, custom, Zb*): `ALUSrcA = rs1`, `ALUSrcB` = `rs2` or immediate, `RegSrc = 00`, write `rd`.
+- **LUI**: `RegSrc = 11`, the immediate goes directly to `rd` (the ALU result is not used). **AUIPC**: ALU computes `PC + imm` (`ALUSrcA = 1`).
+- **Loads**: address = `rs1 + imm`, `MemRead = 1`, `RegSrc = 01`. `CPU` writes `MemoryReadData` to `rd` **unchanged**, so the external data memory must select the bytes and do the sign or zero extension according to `MemoryMask` (funct3): `000` LB, `001` LH, `010` LW, `011` LD, `100` LBU, `101` LHU, `110` LWU.
+- **Stores**: address = `rs1 + imm`, write data = `rs2` (full 64 bits), `MemWrite = 1`. The data memory must use only the low bytes selected by `MemoryMask`: `000` SB, `001` SH, `010` SW, `011` SD.
+- **Branches**: the ALU compares `rs1` and `rs2` (`ALUOpcode = 001`). `Branch = (NOT Zero) XOR (Instruction(14) AND Instruction(12))`. Comparison results are 0 or 1, so `Zero = 1` means the comparison is false. BEQ uses EQ, BNE uses NEQ, BLT and BGE use SLT, BLTU and BGEU use SLTU; BGE (`101`) and BGEU (`111`) invert the result through the XOR term. Target = `PC + imm` (`BranchAdd`).
+- **JAL**: `rd = PC + 4`; the ALU computes `PC + imm` (`ALUSrcA = 1`, `ALUSrcB = 1`) and that result is the next PC. **JALR**: `rd = PC + 4`; the ALU computes `rs1 + imm` and the next PC is that result with bit 0 cleared.
+- **PCControl priority**: `PCSrc = 11` gives `ALUResult(63 DOWNTO 1) & '0'` (JALR); `PCSrc = 10` gives `ALUResult` (JAL); `PCSrc = 01` and `Branch = 1` gives `BranchAdd`; everything else gives `PC + 4`. The `Branch` input is ignored unless `PCSrc = 01`.
 - **FENCE, ECALL, EBREAK**: all control signals are 0 (NOP). There are no traps and no CSRs.
 
 ## 5. Not implementable instructions
@@ -351,16 +380,13 @@ All 64 ALUSelect codes are used, so the following have no ALU operation. Most ca
 
 Implementing them in hardware needs a wider ALUSelect (7 bits) or giving up `XORN`, `SH4ADD`, `SH8ADD`.
 
-## 6. What is still needed to complete the CPU
+## 6. What is still needed
 
-- [ ] `CPU.vhd` top level connecting PC, instruction memory, `MainControl`, register file, `ImmGen`, ALU, data memory and the multiplexers.
-- [ ] Instruction memory addressed by the PC and data memory addressed by the ALU result.
-- [ ] Load/store unit: byte, halfword, word and doubleword access with sign or zero extension (funct3 in section 4).
-- [ ] PC logic: `BranchTaken`, `PCSel`, BranchTarget adder (`PC + imm`), PC + 4 adder, JumpRegTarget with bit 0 cleared.
-- [ ] Register write-back multiplexer (`MUX64B4To1`): ALU result, memory data, PC + 4, immediate.
-- [ ] `ALUSrcA` multiplexer (rs1 or PC) and `ALUSrcB` multiplexer (rs2 or immediate).
-- [ ] Assert `Clear` of the register file at reset (x0 reads 0 only after a clear).
-- [ ] Test bench with at least one test per instruction group.
+The core is complete. Remaining work:
+
+- [ ] Instruction memory and data memory models (or wrappers for the target board). The data memory must implement the byte / halfword / word / doubleword access and the sign or zero extension described in section 4.2.
+- [ ] Test bench with at least one test per instruction group (ALU operations, loads and stores of every size, every branch in taken and not-taken form, JAL, JALR, LUI, AUIPC, reset behaviour).
+- [ ] First simulation and synthesis run (see section 8).
 
 ## 7. Pseudo-instructions
 
@@ -368,14 +394,17 @@ These need no hardware: `NOP`, `MV`, `NOT`, `NEG`, `NEGW`, `SEXT.W`, `ZEXT.W` (`
 
 ## 8. Verification status
 
-- **Control path**: `Control`, `ALUControl` and `MainControl` were checked with a script that interprets the VHDL decode logic. All 114 instructions (and the ALU alias `ADDUW`) give the expected control signals and ALUSelect; don't-care fields (rd, rs, immediate bits, shift bit 25) do not change the result.
+- **Control path**: `Control` and `ALUControl` were checked with a script that translates the VHDL decode logic (CASE / IF) and runs it for every instruction in section 2 (don't-care fields tried with several values). All 114 instructions (and the ALU alias `ADDUW`) give the expected ALUSelect, and every opcode gives the signals of section 3.2. This README and `Supported Instructions.md` list the same 114 instructions with the same opcode and funct3.
+- **Branch logic in `CPU.vhd`**: `Branch = (NOT Zero) XOR (Instruction(14) AND Instruction(12))` was checked for BEQ, BNE, BLT, BGE, BLTU and BGEU with edge operands (0, 1, -1, most negative, most positive); all give the correct taken / not-taken result.
 - **ALU**: every select code `0..63` chooses the result signal of the same name. All operation definitions were reviewed by reading; no functional error was found.
-- **Not done**: no HDL simulator or synthesis run yet. Test in simulation: DIV and DIVW for most-negative / -1 (must return the dividend, REM must return 0), and all shift and rotate edge amounts.
+- **Not done**: no HDL simulator or synthesis run yet, and the top level `CPU.vhd` was reviewed by reading only. Test in simulation: DIV and DIVW for most-negative / -1 (must return the dividend, REM must return 0), all shift and rotate edge amounts, and the reset sequence (the PC register and the register file are cleared only on a rising clock edge with `Reset = 1`, so their contents are undefined before the first clear).
 
 ## 9. Known limitations
 
 - `ALUSrcB` is 1 bit: operand B cannot be forced to 0 or -1 (no `BUFFER`, `NEG` by multiply, `INC`, `DEC` as single instructions). `MUX64B4To1` can support a 2-bit version later.
 - Undefined funct combinations execute as ADD and still write `rd` (no illegal-instruction trap).
+- Load size and extension is not done inside the CPU: `MemoryReadData` goes straight to the write-back multiplexer, so a plain 64-bit memory gives wrong results for LB, LH, LW, LBU, LHU and LWU.
+- Reset is synchronous (needs a clock edge with `Reset = 1`). There is no misaligned-address check for fetch, load or store.
 - Single cycle with combinational multiply, divide and remainder: the critical path is long.
 - No CSRs, traps, interrupts, privilege levels or atomic and floating-point extensions.
 - Some comments in `ALU.vhd` and `ALUControl.vhd` use instruction names for ALU operations (for example BEQ for EQ); the codes are correct.

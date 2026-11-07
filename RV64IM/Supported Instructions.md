@@ -1,6 +1,6 @@
 # RV64IM CPU: Supported Instructions
 
-Single-cycle 64-bit RISC-V CPU (VHDL). All instructions are 32 bits wide. This file lists only the instructions the current files can decode and execute, with their `opcode` and function fields.
+Single-cycle 64-bit RISC-V CPU (VHDL, top level `CPU.vhd`). All instructions are 32 bits wide. This file lists only the instructions the current files can decode and execute, with their `opcode` and function fields. The instruction memory and the data memory are external to `CPU.vhd` (see Notes).
 
 Instruction fields: `opcode` = `[6:0]`, `funct3` = `[14:12]`, `funct7` = `[31:25]`. For immediate shifts `[31:26]` (funct6) is used, because bit 25 belongs to the 6-bit shift amount.
 
@@ -175,10 +175,12 @@ Not part of any RISC-V extension. Opcode `0001011` (custom-0) is R-type, opcode 
 | SLEI, SLEUI | rd = 1 if rs1 <= imm (signed, unsigned), else 0 |
 | ROLI | rd = rs1 rotated left by a 6-bit shift amount |
 
-`imm` is the 12-bit sign-extended immediate. For ROLI and RORI, bits `[31:26]` must be `000000`.
+`imm` is the 12-bit sign-extended immediate. For ROLI and RORI, bits `[31:26]` must be `000000`; otherwise `ImmGen` outputs 0 and the rotate amount becomes 0.
 
 ## Notes
 
 - Standard toolchains do not know the custom-0 and custom-1 encodings. Instructions placed in those slots need your own assembler.
-- Branches, jumps and byte, halfword and word loads/stores depend on the wiring in the CPU top level.
+- Branches (BEQ, BNE, BLT, BGE, BLTU, BGEU), JAL and JALR are fully wired in `CPU.vhd` and `PCControl.vhd`. JALR clears bit 0 of the target.
+- Loads and stores send `funct3` to the external data memory (`MemoryMask`). The CPU writes `MemoryReadData` to `rd` unchanged, so the data memory must do the byte / halfword / word selection and the sign or zero extension for LB, LH, LW, LBU, LHU, LWU, and must store only the selected low bytes for SB, SH, SW.
+- `Reset` is synchronous: hold it high for at least one rising clock edge. The PC is 0 afterwards and x0 always reads 0.
 - There is no illegal-instruction trap. Encodings not listed here are not supported and must not be executed.
